@@ -27,7 +27,7 @@ client = commands.Bot(command_prefix="!", intents=intents)
 # --- CONFIGURATION DES SALONS (Tes IDs fournis) ---
 ID_SALON_WELCOME = 1499019793318285343  # Salon #Welcome
 ID_SALON_LEVELUP = 1499039238015160390  # Salon #level-up
-ID_SALON_RULES = 1499009949685321832    # Salon #Rules (Vérifie cet ID)
+ID_SALON_RULES = 1499012460772851793  # Salon #Rules (Vérifie cet ID)
 
 # Liste exacte des noms de rôles pour la correspondance et le nettoyage
 LEVEL_ROLES = [

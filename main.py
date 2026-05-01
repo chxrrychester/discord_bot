@@ -55,7 +55,7 @@ async def main():
     async with client:
         # Remplace 'TON_TOKEN' par ton vrai token si tu testes en local
         # Ou utilise os.getenv('TOKEN') pour plus de sécurité
-        await client.start("TON_TOKEN_ICI")
+        await client.start(os.getenv('TOKEN'))
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -7,6 +7,8 @@ from discord.ext import commands
 from discord import app_commands
 from flask import Flask
 from threading import Thread
+from PIL import Image, ImageDraw
+import io
 
 # --- SYSTÈME KEEP ALIVE POUR RENDER ---
 app = Flask('')
@@ -78,6 +80,63 @@ def create_xp_bar(current_xp, xp_needed, length=20):
     bar += empty * (length - filled)
     
     return f"{bar} {current_xp}/{xp_needed} XP"
+
+def create_xp_progress_image(current_xp, xp_needed, username):
+    """Crée une image de jauge d'XP avec dégradé jaune vers rose"""
+    # Dimensions
+    width, height = 450, 60
+    
+    # Créer l'image
+    img = Image.new('RGB', (width, height), color=(30, 30, 30))
+    draw = ImageDraw.Draw(img)
+    
+    # Bordure et fond de la barre
+    bar_padding = 10
+    bar_height = 30
+    bar_y = (height - bar_height) // 2
+    
+    # Dessiner la barre de fond (gris foncé)
+    draw.rectangle(
+        [(bar_padding, bar_y), (width - bar_padding, bar_y + bar_height)],
+        fill=(50, 50, 50),
+        outline=(100, 100, 100),
+        width=2
+    )
+    
+    # Calculer la progression
+    progress = current_xp / xp_needed
+    bar_width = width - (2 * bar_padding) - 4
+    filled_width = int(bar_width * progress)
+    
+    # Créer le dégradé jaune -> rose
+    gradient_img = Image.new('RGB', (filled_width, bar_height))
+    gradient_pixels = gradient_img.load()
+    
+    for x in range(filled_width):
+        # Progression du dégradé
+        ratio = x / max(filled_width, 1)
+        
+        # Interpolation: Jaune (255,255,0) -> Rose (255,192,203)
+        r = int(255)
+        g = int(255 - (ratio * 63))  # 255 -> 192
+        b = int(0 + (ratio * 203))    # 0 -> 203
+        
+        for y in range(bar_height):
+            gradient_pixels[x, y] = (r, g, b)
+    
+    # Coller le gradient sur l'image principale
+    img.paste(gradient_img, (bar_padding + 2, bar_y + 2))
+    
+    # Ajouter le texte de progression
+    text = f"{current_xp}/{xp_needed} XP"
+    # On va créer une version simple sans texte en superposition
+    
+    # Sauvegarder en bytes
+    img_bytes = io.BytesIO()
+    img.save(img_bytes, format='PNG')
+    img_bytes.seek(0)
+    
+    return discord.File(img_bytes, filename='xp_bar.png')
 
 @client.event
 async def on_ready():
@@ -180,21 +239,43 @@ async def level_command(interaction: discord.Interaction):
     xp_in_level = current_xp % xp_needed
     
     rank_name = get_rank_name(current_level)
-    xp_bar = create_xp_bar(xp_in_level, xp_needed)
     
-    embed = discord.Embed(
-        title=f"Niveau de {interaction.user.name}",
-        description=f"**Niveau :** {current_level}\n**Rang :** {rank_name}",
-        color=discord.Color.gold()
-    )
-    embed.add_field(
-        name="Progression XP",
-        value=xp_bar,
-        inline=False
-    )
-    embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)
-    
-    await interaction.response.send_message(embed=embed)
+    # Créer l'image de la jauge
+    try:
+        xp_bar_file = create_xp_progress_image(xp_in_level, xp_needed, interaction.user.name)
+        
+        embed = discord.Embed(
+            title=f"Niveau de {interaction.user.name}",
+            description=f"**Niveau :** {current_level}\n**Rang :** {rank_name}",
+            color=discord.Color.gold()
+        )
+        embed.add_field(
+            name="Progression XP",
+            value=f"{xp_in_level}/{xp_needed} XP",
+            inline=False
+        )
+        embed.set_image(url="attachment://xp_bar.png")
+        embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)
+        
+        await interaction.response.send_message(embed=embed, file=xp_bar_file)
+    except Exception as e:
+        print(f"❌ Erreur lors de la création de la jauge: {e}", flush=True)
+        sys.stdout.flush()
+        
+        # Fallback avec du texte simple
+        embed = discord.Embed(
+            title=f"Niveau de {interaction.user.name}",
+            description=f"**Niveau :** {current_level}\n**Rang :** {rank_name}",
+            color=discord.Color.gold()
+        )
+        embed.add_field(
+            name="Progression XP",
+            value=f"{xp_in_level}/{xp_needed} XP",
+            inline=False
+        )
+        embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)
+        
+        await interaction.response.send_message(embed=embed)
 
 async def main():
     print("🤖 Initialisation du bot Discord...", flush=True)

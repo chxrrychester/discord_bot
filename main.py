@@ -17,8 +17,9 @@ def run():
     app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
-    t = Thread(target=run)
+    t = Thread(target=run, daemon=True)
     t.start()
+    print("Keep-alive Flask server started on port 8080")
 
 # --- CONFIGURATION DU BOT ---
 intents = discord.Intents.all()
@@ -78,8 +79,11 @@ def create_xp_bar(current_xp, xp_needed, length=20):
 
 @client.event
 async def on_ready():
-    await client.tree.sync()
-    print(f"L'ange {client.user.name} est prêt ! Rôles configurés.")
+    try:
+        await client.tree.sync()
+        print(f"✅ L'ange {client.user.name} est prêt ! Rôles configurés.")
+    except Exception as e:
+        print(f"⚠️ Erreur lors de la synchronisation des commandes: {e}")
 
 @client.event
 async def on_member_join(member):
@@ -175,8 +179,24 @@ async def level_command(interaction: discord.Interaction):
 async def main():
     keep_alive()
     async with client:
-        token = os.getenv('TOKEN') or "TON_TOKEN_ICI"
-        await client.start(token)
+        token = os.getenv('TOKEN')
+        if not token or token == "TON_TOKEN_ICI":
+            print("❌ ERREUR: Variable d'environnement 'TOKEN' manquante ou invalide!")
+            print("Ajoute TON TOKEN DISCORD dans les variables d'environnement Render")
+            return
+        
+        try:
+            await client.start(token)
+        except Exception as e:
+            print(f"❌ Erreur au démarrage du bot: {e}")
+            raise
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Bot arrêté")
+    except Exception as e:
+        print(f"❌ Erreur fatale: {e}")
+        import traceback
+        traceback.print_exc()

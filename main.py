@@ -27,7 +27,10 @@ def keep_alive():
 
 # --- CONFIGURATION DU BOT ---
 intents = discord.Intents.all()
-intents.members = True 
+intents.members = True
+intents.message_content = True
+intents.guilds = True
+intents.guild_messages = True
 client = commands.Bot(command_prefix="!", intents=intents)
 
 # --- CONFIGURATION DES SALONS ---
@@ -214,20 +217,50 @@ async def on_message(message):
 
     await client.process_commands(message)
 
-@client.tree.command(name="level", description="Affiche votre niveau et votre rang")
-async def level_command(interaction: discord.Interaction):
+@client.command(name="level", description="Affiche votre niveau et votre rang")
+async def level_prefix_command(ctx):
+    """Commande prefix !level pour afficher le niveau"""
     try:
-        # Vérifier que la commande est utilisée sur un serveur
-        if not interaction.guild:
-            embed = discord.Embed(
-                title="❌ Erreur",
-                description="Cette commande fonctionne **uniquement sur un serveur** !",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
+        print(f"⚡ !level called by {ctx.author.name}", flush=True)
+        sys.stdout.flush()
         
-        print(f"📊 Commande /level utilisée par {interaction.user.name}", flush=True)
+        user_id = str(ctx.author.id)
+        
+        if user_id not in user_data:
+            user_data[user_id] = {"xp": 0, "level": 0}
+        
+        current_level = user_data[user_id]["level"]
+        current_xp = user_data[user_id]["xp"]
+        xp_needed = 100
+        xp_in_level = current_xp % xp_needed
+        
+        rank_name = get_rank_name(current_level)
+        xp_bar_file = create_xp_progress_image(xp_in_level, xp_needed, ctx.author.name)
+        
+        embed = discord.Embed(
+            title=f"📊 Niveau de {ctx.author.name}",
+            description=f"**Niveau :** {current_level}\n**Rang :** {rank_name}",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="Progression XP", value=f"{xp_in_level}/{xp_needed} XP", inline=False)
+        embed.set_image(url="attachment://xp_bar.png")
+        embed.set_thumbnail(url=ctx.author.avatar.url if ctx.author.avatar else None)
+        
+        await ctx.send(embed=embed, file=xp_bar_file)
+        print(f"✅ !level response sent", flush=True)
+        
+    except Exception as e:
+        print(f"❌ ERREUR DANS !level: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        await ctx.send(f"❌ Erreur: {str(e)[:100]}")
+
+@client.tree.command(name="level", description="Affiche votre niveau et votre rang")
+@discord.app_commands.guilds(discord.Object(id=ID_SERVEUR))
+async def level_command(interaction: discord.Interaction):
+    """Commande slash /level pour afficher le niveau d'un utilisateur"""
+    try:
+        print(f"🔥 /level called by {interaction.user.name} in {interaction.channel.name if interaction.channel else 'DM'}", flush=True)
         sys.stdout.flush()
         
         user_id = str(interaction.user.id)
@@ -246,7 +279,7 @@ async def level_command(interaction: discord.Interaction):
         xp_bar_file = create_xp_progress_image(xp_in_level, xp_needed, interaction.user.name)
         
         embed = discord.Embed(
-            title=f"Niveau de {interaction.user.name}",
+            title=f"📊 Niveau de {interaction.user.name}",
             description=f"**Niveau :** {current_level}\n**Rang :** {rank_name}",
             color=discord.Color.gold()
         )
@@ -259,25 +292,24 @@ async def level_command(interaction: discord.Interaction):
         embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)
         
         await interaction.response.send_message(embed=embed, file=xp_bar_file)
-        print(f"✅ /level envoyé avec succès", flush=True)
+        print(f"✅ /level response sent successfully", flush=True)
         sys.stdout.flush()
         
     except Exception as e:
-        print(f"❌ Erreur dans /level: {e}", flush=True)
+        print(f"❌ ERREUR DANS /level: {type(e).__name__}: {e}", flush=True)
         import traceback
         traceback.print_exc()
         sys.stdout.flush()
         
         try:
-            # Fallback - envoyer un message d'erreur
             embed = discord.Embed(
                 title="❌ Erreur",
-                description=f"Une erreur s'est produite : {str(e)[:100]}",
+                description=f"Erreur: {str(e)[:150]}",
                 color=discord.Color.red()
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        except:
-            pass
+            await interaction.response.send_message(embed=embed)
+        except Exception as e2:
+            print(f"Impossible d'envoyer le message d'erreur: {e2}", flush=True)
 
 async def main():
     print("🤖 Initialisation du bot Discord...", flush=True)

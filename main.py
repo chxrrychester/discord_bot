@@ -86,7 +86,7 @@ def create_xp_bar(current_xp, xp_needed, length=20):
     return f"{bar} {current_xp}/{xp_needed} XP"
 
 def create_xp_progress_image(current_xp, xp_needed, username):
-    """Crée une image de jauge d'XP avec dégradé jaune vers rose"""
+    """Crée une image de jauge d'XP avec dégradé rose"""
     width, height = 400, 50
     
     img = Image.new('RGB', (width, height), color=(40, 40, 40))
@@ -96,28 +96,43 @@ def create_xp_progress_image(current_xp, xp_needed, username):
     bar_height = 30
     bar_y = (height - bar_height) // 2
     
-    # Barre de fond
+    # Barre de fond (gris foncé)
     draw.rectangle(
         [(bar_padding, bar_y), (width - bar_padding, bar_y + bar_height)],
         fill=(60, 60, 60),
-        outline=(100, 100, 100),
+        outline=(150, 150, 150),
         width=2
     )
     
     # Calculer la progression
     progress = max(0, min(1, current_xp / xp_needed))
     bar_width = width - (2 * bar_padding) - 4
-    filled_width = int(bar_width * progress)
+    filled_width = max(1, int(bar_width * progress))  # Au moins 1 pixel pour voir la barre
+    
+    print(f"DEBUG XP Bar: current_xp={current_xp}, xp_needed={xp_needed}, progress={progress}, filled_width={filled_width}", flush=True)
     
     if filled_width > 0:
-        # Créer le gradient pixel par pixel
+        # Créer le gradient rose dégradé (jaune → rose → violet)
         for x in range(filled_width):
             ratio = x / max(filled_width, 1)
-            r = 255
-            g = int(255 - (ratio * 63))
-            b = int(ratio * 203)
             
-            draw.line([(bar_padding + 2 + x, bar_y + 2), (bar_padding + 2 + x, bar_y + bar_height - 2)], fill=(r, g, b), width=1)
+            # Dégradé: Jaune (255,255,0) -> Orange (255,165,0) -> Rose (255,105,180) -> Violet (200,100,180)
+            if ratio < 0.5:
+                # Jaune -> Rose
+                t = ratio * 2
+                r = int(255)
+                g = int(255 - (t * 150))  # 255 -> 105
+                b = int(t * 180)  # 0 -> 180
+            else:
+                # Rose -> Violet
+                t = (ratio - 0.5) * 2
+                r = int(255 - (t * 55))  # 255 -> 200
+                g = int(105 - (t * 5))  # 105 -> 100
+                b = int(180 + (t * 0))  # 180
+            
+            # Tracer une ligne verticale de cette couleur
+            draw.line([(bar_padding + 2 + x, bar_y + 2), (bar_padding + 2 + x, bar_y + bar_height - 2)], 
+                     fill=(r, g, b), width=1)
     
     # Sauvegarder en bytes
     img_bytes = io.BytesIO()
@@ -234,15 +249,31 @@ async def level_prefix_command(ctx):
         xp_needed = 100
         xp_in_level = current_xp % xp_needed
         
+        print(f"DEBUG: User {ctx.author.name} - level={current_level}, xp={current_xp}, xp_in_level={xp_in_level}", flush=True)
+        
         rank_name = get_rank_name(current_level)
+        
+        # Récupérer les rôles de l'utilisateur
+        roles = [role.name for role in ctx.author.roles if role.name != "@everyone"]
+        roles_str = ", ".join(roles) if roles else "Aucun rôle"
+        
         xp_bar_file = create_xp_progress_image(xp_in_level, xp_needed, ctx.author.name)
         
         embed = discord.Embed(
             title=f"📊 Niveau de {ctx.author.name}",
-            description=f"**Niveau :** {current_level}\n**Rang :** {rank_name}",
+            description=f"**Niveau :** {current_level}\n**Rang Système :** {rank_name}",
             color=discord.Color.gold()
         )
-        embed.add_field(name="Progression XP", value=f"{xp_in_level}/{xp_needed} XP", inline=False)
+        embed.add_field(
+            name="📍 Vos rôles Discord",
+            value=roles_str,
+            inline=False
+        )
+        embed.add_field(
+            name="⚡ Progression XP",
+            value=f"{xp_in_level}/{xp_needed} XP",
+            inline=False
+        )
         embed.set_image(url="attachment://xp_bar.png")
         embed.set_thumbnail(url=ctx.author.avatar.url if ctx.author.avatar else None)
         
@@ -273,18 +304,30 @@ async def level_command(interaction: discord.Interaction):
         xp_needed = 100
         xp_in_level = current_xp % xp_needed
         
+        print(f"DEBUG: User {interaction.user.name} - level={current_level}, xp={current_xp}, xp_in_level={xp_in_level}", flush=True)
+        
         rank_name = get_rank_name(current_level)
+        
+        # Récupérer le vrai rôle de l'utilisateur sur le serveur
+        member = interaction.user
+        roles = [role.name for role in member.roles if role.name != "@everyone"]
+        roles_str = ", ".join(roles) if roles else "Aucun rôle"
         
         # Créer l'image de la jauge
         xp_bar_file = create_xp_progress_image(xp_in_level, xp_needed, interaction.user.name)
         
         embed = discord.Embed(
             title=f"📊 Niveau de {interaction.user.name}",
-            description=f"**Niveau :** {current_level}\n**Rang :** {rank_name}",
+            description=f"**Niveau :** {current_level}\n**Rang Système :** {rank_name}",
             color=discord.Color.gold()
         )
         embed.add_field(
-            name="Progression XP",
+            name="📍 Vos rôles Discord",
+            value=roles_str,
+            inline=False
+        )
+        embed.add_field(
+            name="⚡ Progression XP",
             value=f"{xp_in_level}/{xp_needed} XP",
             inline=False
         )

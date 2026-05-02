@@ -56,6 +56,12 @@ def get_rank_name(level):
             return LEVEL_ROLES[str(threshold)]
     return LEVEL_ROLES["0"]
 
+def create_xp_bar(current_xp, xp_needed, length=20):
+    """Crée une jauge d'XP visuelle"""
+    filled = int((current_xp / xp_needed) * length)
+    bar = "█" * filled + "░" * (length - filled)
+    return f"`{bar}` {current_xp}/{xp_needed} XP"
+
 @client.event
 async def on_ready():
     await client.tree.sync()
@@ -132,9 +138,11 @@ async def level_command(interaction: discord.Interaction):
     
     current_level = user_data[user_id]["level"]
     current_xp = user_data[user_id]["xp"]
-    xp_for_next_level = (current_level + 1) * 100
+    xp_needed = 100
+    xp_in_level = current_xp % xp_needed
     
     rank_name = get_rank_name(current_level)
+    xp_bar = create_xp_bar(xp_in_level, xp_needed)
     
     embed = discord.Embed(
         title=f"Niveau de {interaction.user.name}",
@@ -142,13 +150,11 @@ async def level_command(interaction: discord.Interaction):
         color=discord.Color.gold()
     )
     embed.add_field(
-        name="XP",
-        value=f"{current_xp}/{xp_for_next_level} XP",
-        inline=True
+        name="Progression XP",
+        value=xp_bar,
+        inline=False
     )
     embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)
-    
-    await interaction.response.send_message(embed=embed)
     
     await interaction.response.send_message(embed=embed)
 

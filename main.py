@@ -33,7 +33,8 @@ client = commands.Bot(command_prefix="!", intents=intents)
 # --- CONFIGURATION DES SALONS ---
 ID_SALON_WELCOME = 1499019793318285343  
 ID_SALON_LEVELUP = 1499039238015160390  
-ID_SALON_RULES = 1499012460772851793    
+ID_SALON_RULES = 1499012460772851793
+ID_SERVEUR = 1499002734748111039  # ID du serveur Discord d'Angel    
 
 # LISTE EXACTE DES RÔLES (Basée sur ton image 675855.png)
 # Attention : Les rôles 41-50 et 51-60 n'ont pas "lvl" au début sur ton screen !
@@ -129,7 +130,20 @@ async def on_ready():
         print(f"🔄 Synchronisation des commandes slash...", flush=True)
         sys.stdout.flush()
         
+        # Synchroniser les commandes GLOBALEMENT
         await client.tree.sync()
+        print(f"✅ Synchronisation globale complétée", flush=True)
+        
+        # Synchroniser aussi pour le serveur spécifique
+        try:
+            guild = discord.Object(id=ID_SERVEUR)
+            synced = await client.tree.sync(guild=guild)
+            print(f"✅ Commandes synchronisées pour le serveur {ID_SERVEUR}: {len(synced)} commandes", flush=True)
+            for cmd in synced:
+                print(f"   - {cmd.name}: {cmd.description}", flush=True)
+        except Exception as e:
+            print(f"⚠️ Erreur lors de la synchronisation serveur: {e}", flush=True)
+        
         print(f"✅ L'ange {client.user.name} est prêt ! Rôles configurés.", flush=True)
         sys.stdout.flush()
     except Exception as e:

@@ -38,7 +38,7 @@ client = commands.Bot(command_prefix="!", intents=intents)
 ID_SALON_WELCOME = 1499019793318285343  
 ID_SALON_LEVELUP = 1499039238015160390  
 ID_SALON_RULES = 1499012460772851793
-ID_SERVEUR = 1499002734748111039  # ID du serveur Discord d'Angel    
+ID_SERVEUR = 1499002734748111039  
 
 # LISTE EXACTE DES RÔLES
 LEVEL_ROLES = {
@@ -76,7 +76,6 @@ def save_data():
     except Exception as e:
         print(f"⚠️ Erreur de sauvegarde JSON: {e}")
 
-# On charge les données sauvegardées au démarrage
 user_data = load_data()
 
 # --- FONCTIONS UTILITAIRES ---
@@ -86,28 +85,42 @@ def get_rank_name(level):
             return LEVEL_ROLES[str(threshold)]
     return LEVEL_ROLES["0"]
 
+def infer_data_from_roles(member):
+    """Déduit le niveau de départ uniquement si l'utilisateur n'a pas d'XP enregistrée"""
+    if not hasattr(member, 'roles'):
+        return 0, 0
+
+    highest_level = 0
+    for role in member.roles:
+        for threshold, role_name in LEVEL_ROLES.items():
+            if role.name == role_name:
+                lvl = int(threshold)
+                if lvl > highest_level:
+                    highest_level = lvl
+
+    # On convertit le palier en XP de base (ex: lvl 6 = 600 XP)
+    return highest_level, highest_level * 100
+
 async def update_member_roles(member, level):
-    """Met à jour les rôles d'un membre en fonction de son niveau réel"""
+    """Assigne le bon rôle et nettoie les anciens pour correspondre au niveau exact"""
     rank_name = get_rank_name(level)
     role = discord.utils.get(member.guild.roles, name=rank_name)
     
     if role and role not in member.roles:
         try:
-            # On retire les anciens rôles de la liste LEVEL_ROLES
-            to_remove = [r for r in member.roles if r.name in LEVEL_ROLES.values()]
+            # On enlève les rôles de niveaux obsolètes
+            to_remove = [r for r in member.roles if r.name in LEVEL_ROLES.values() and r.name != rank_name]
             if to_remove:
                 await member.remove_roles(*to_remove)
             
-            # On ajoute le nouveau rôle
             await member.add_roles(role)
             print(f"Rôle {rank_name} attribué à {member.name}", flush=True)
         except discord.Forbidden:
-            print(f"ERREUR : Angel n'a pas les permissions pour modifier les rôles de {member.name}.", flush=True)
+            print(f"ERREUR: Angel n'a pas les permissions pour modifier les rôles de {member.name}.", flush=True)
 
 def create_xp_progress_image(current_xp, xp_needed, username):
-    """Crée l'image de jauge d'XP avec dégradé rose/jaune d'origine"""
+    """Génère la barre d'XP avec un dégradé précis"""
     width, height = 400, 50
-    
     img = Image.new('RGB', (width, height), color=(40, 40, 40))
     draw = ImageDraw.Draw(img)
     
@@ -115,7 +128,7 @@ def create_xp_progress_image(current_xp, xp_needed, username):
     bar_height = 30
     bar_y = (height - bar_height) // 2
     
-    # Barre de fond (gris foncé)
+    # Barre de fond (gris)
     draw.rectangle(
         [(bar_padding, bar_y), (width - bar_padding, bar_y + bar_height)],
         fill=(60, 60, 60),
@@ -123,15 +136,15 @@ def create_xp_progress_image(current_xp, xp_needed, username):
         width=2
     )
     
+    # Calcul exact du remplissage
     progress = max(0, min(1, current_xp / xp_needed))
     bar_width = width - (2 * bar_padding) - 4
-    filled_width = max(1, int(bar_width * progress))
+    filled_width = max(0, int(bar_width * progress))
     
     if filled_width > 0:
         for x in range(filled_width):
             ratio = x / max(filled_width, 1)
-            
-            # Dégradé d'origine : Jaune -> Orange -> Rose -> Violet
+            # Dégradé jaune -> orange -> rose
             if ratio < 0.5:
                 t = ratio * 2
                 r = int(255)
@@ -157,23 +170,16 @@ def create_xp_progress_image(current_xp, xp_needed, username):
 async def on_ready():
     try:
         print(f"📡 Connexion établie avec {client.user.name}", flush=True)
-        print(f"🔄 Synchronisation des commandes slash...", flush=True)
-        sys.stdout.flush()
-        
         await client.tree.sync()
-        print(f"✅ Synchronisation globale complétée", flush=True)
-        
         try:
             guild = discord.Object(id=ID_SERVEUR)
-            synced = await client.tree.sync(guild=guild)
-            print(f"✅ Commandes synchronisées pour le serveur {ID_SERVEUR}: {len(synced)} commandes", flush=True)
+            await client.tree.sync(guild=guild)
+            print(f"✅ Commandes synchronisées pour le serveur {ID_SERVEUR}", flush=True)
         except Exception as e:
             print(f"⚠️ Erreur lors de la synchronisation serveur: {e}", flush=True)
-        
-        print(f"✅ L'ange {client.user.name} est prêt ! Rôles configurés.", flush=True)
         sys.stdout.flush()
     except Exception as e:
-        print(f"⚠️ Erreur lors de la synchronisation des commandes: {e}", flush=True)
+        print(f"⚠️ Erreur on_ready: {e}", flush=True)
 
 @client.event
 async def on_member_join(member):
@@ -194,10 +200,13 @@ async def on_message(message):
         return
 
     user_id = str(message.author.id)
+    
+    # Si l'utilisateur n'est pas dans le fichier, on récupère son palier via ses rôles
     if user_id not in user_data:
-        user_data[user_id] = {"xp": 0, "level": 0}
+        inferred_lvl, inferred_xp = infer_data_from_roles(message.author)
+        user_data[user_id] = {"xp": inferred_xp, "level": inferred_lvl}
 
-    # Gain d'XP
+    # Gain d'XP normal (10 XP par message)
     user_data[user_id]["xp"] += 10
     current_xp = user_data[user_id]["xp"]
     current_lvl = user_data[user_id]["level"]
@@ -224,58 +233,26 @@ async def on_message(message):
     await client.process_commands(message)
 
 # --- COMMANDES ---
-@client.command(name="level", description="Affiche votre niveau et votre rang")
-async def level_prefix_command(ctx):
-    try:
-        user_id = str(ctx.author.id)
-        if user_id not in user_data:
-            user_data[user_id] = {"xp": 0, "level": 0}
-            save_data()
-        
-        current_level = user_data[user_id]["level"]
-        current_xp = user_data[user_id]["xp"]
-        xp_needed = 100
-        xp_in_level = current_xp % xp_needed
-        
-        # S'assurer que le rôle Discord correspond bien au niveau actuel
-        await update_member_roles(ctx.author, current_level)
-        
-        rank_name = get_rank_name(current_level)
-        roles = [role.name for role in ctx.author.roles if role.name != "@everyone"]
-        roles_str = ", ".join(roles) if roles else "Aucun rôle"
-        
-        xp_bar_file = create_xp_progress_image(xp_in_level, xp_needed, ctx.author.name)
-        
-        embed = discord.Embed(
-            title=f"📊 Niveau de {ctx.author.name}",
-            description=f"**Niveau :** {current_level}\n**Rang Système :** {rank_name}",
-            color=discord.Color.gold()
-        )
-        embed.add_field(name="📍 Vos rôles Discord", value=roles_str, inline=False)
-        embed.add_field(name="⚡ Progression XP", value=f"{xp_in_level}/{xp_needed} XP", inline=False)
-        embed.set_image(url="attachment://xp_bar.png")
-        embed.set_thumbnail(url=ctx.author.avatar.url if ctx.author.avatar else None)
-        
-        await ctx.send(embed=embed, file=xp_bar_file)
-    except Exception as e:
-        print(f"❌ ERREUR DANS !level: {e}", flush=True)
-        await ctx.send(f"❌ Erreur: {str(e)[:100]}")
-
 @client.tree.command(name="level", description="Affiche votre niveau et votre rang")
 @discord.app_commands.guilds(discord.Object(id=ID_SERVEUR))
 async def level_command(interaction: discord.Interaction):
     try:
         user_id = str(interaction.user.id)
+        
+        # Récupération automatique du niveau selon les rôles si l'utilisateur est inconnu
         if user_id not in user_data:
-            user_data[user_id] = {"xp": 0, "level": 0}
+            inferred_lvl, inferred_xp = infer_data_from_roles(interaction.user)
+            user_data[user_id] = {"xp": inferred_xp, "level": inferred_lvl}
             save_data()
         
         current_level = user_data[user_id]["level"]
         current_xp = user_data[user_id]["xp"]
+        
+        # 100 XP par niveau. On calcule l'XP restant dans le niveau actuel
         xp_needed = 100
         xp_in_level = current_xp % xp_needed
         
-        # S'assurer que le rôle Discord correspond bien au niveau actuel
+        # S'assurer que le joueur a bien le bon rôle
         await update_member_roles(interaction.user, current_level)
         
         rank_name = get_rank_name(current_level)
@@ -303,30 +280,16 @@ async def level_command(interaction: discord.Interaction):
             pass
 
 async def main():
-    print("🤖 Initialisation du bot Discord...", flush=True)
-    sys.stdout.flush()
-    
     keep_alive()
-    
     async with client:
         token = os.getenv('TOKEN')
         if not token:
             print("❌ ERREUR: Variable d'environnement 'TOKEN' manquante!", flush=True)
             return
-        
-        print("✅ TOKEN trouvé, démarrage du bot...", flush=True)
-        try:
-            await client.start(token)
-        except Exception as e:
-            print(f"❌ Erreur au démarrage du bot: {e}", flush=True)
+        await client.start(token)
 
 if __name__ == "__main__":
     try:
-        print("=" * 50, flush=True)
-        print("🚀 Démarrage du bot Angel", flush=True)
-        print("=" * 50, flush=True)
-        sys.stdout.flush()
-        
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\n⏹️ Bot arrêté par l'utilisateur", flush=True)

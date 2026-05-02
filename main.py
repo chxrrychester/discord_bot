@@ -193,13 +193,18 @@ async def on_message(message):
     # --- GESTION DU SALON SUPPORT ---
     if message.channel.id == ID_SALON_SUPPORT:
         support_message = """🍒 ✧･ﾟ: ✧･ﾟ 𝓼𝓾𝓹𝓹𝓸𝓻𝓽 𝓶𝓮 ♡ :･ﾟ✧:･ﾟ✧ 🍒
-₊˚⊹♡ 𝓽𝓾 𝓹𝓮𝓾𝔁 𝓶𝓮 𝓯𝓸𝓵𝓵𝓸𝔀 & 𝓶𝓮 𝓼𝓸𝓾𝓽𝓮𝓷𝓲𝓻 ♡⊹˚₊
+
+₊˚⊹♡ 𝓯𝓸𝓵𝓵𝓸𝔀 𝓶𝓮 & 𝓼𝓾𝓹𝓹𝓸𝓻𝓽 𝓶𝓪𝓷 𝓹𝓻𝓪𝓷𝔁 ♡⊹˚₊
+
 🌷 instagram • ko-fi • vgen ✨
-🎨 commissions dispo là-bas aussi 💌💖
-₊˚⊹♡ 𝓶𝓮𝓻𝓬𝓲 𝓹𝓸𝓾𝓻 𝓵𝓮 𝓼𝓸𝓾𝓽𝓲𝓮𝓷 ♡⊹˚₊
+🎨 commissions available there too 💌💖
+
+₊˚⊹♡ 𝓽𝓱𝓪𝓷𝓴 𝔂𝓸𝓾 𝓯𝓸𝓻 𝔰𝓾𝓹𝓹𝓸𝓻𝓽𝓲𝓷𝓰 ♡⊹˚₊
+
 🔗 https://ko-fi.com/cherrychester53235
 🔗 https://www.instagram.com/chxrrychester/
 🔗 https://vgen.co/CherryChester
+
 (≧◡≦) ♡ ✨"""
         await message.channel.send(support_message)
         return

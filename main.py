@@ -57,10 +57,24 @@ def get_rank_name(level):
     return LEVEL_ROLES["0"]
 
 def create_xp_bar(current_xp, xp_needed, length=20):
-    """Crée une jauge d'XP visuelle"""
+    """Crée une jauge d'XP avec dégradé jaune vers rose"""
+    # Emojis dégradé jaune -> orange -> rouge -> rose
+    colors = ['🟨', '🟨', '🟧', '🟧', '🟥', '🟥', '🟪', '🟪', '🟪']
+    empty = '⬜'
+    
     filled = int((current_xp / xp_needed) * length)
-    bar = "█" * filled + "░" * (length - filled)
-    return f"`{bar}` {current_xp}/{xp_needed} XP"
+    
+    # Crée la barre avec dégradé
+    bar = ''
+    for i in range(filled):
+        # Sélectionne la couleur selon la progression
+        color_index = min(int((i / length) * len(colors)), len(colors) - 1)
+        bar += colors[color_index]
+    
+    # Complète avec des carrés vides
+    bar += empty * (length - filled)
+    
+    return f"{bar} {current_xp}/{xp_needed} XP"
 
 @client.event
 async def on_ready():
@@ -129,7 +143,7 @@ async def on_message(message):
 
     await client.process_commands(message)
 
-@client.tree.command(name="level", description="Affiche votre niveau et votre rang")
+@client.tree.command(name="level", description="Affiche votre niveau et votre rang", guild_only=True)
 async def level_command(interaction: discord.Interaction):
     user_id = str(interaction.user.id)
     

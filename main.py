@@ -157,8 +157,18 @@ async def on_message(message):
 
     await client.process_commands(message)
 
-@client.tree.command(name="level", description="Affiche votre niveau et votre rang", guild_only=True)
+@client.tree.command(name="level", description="Affiche votre niveau et votre rang")
 async def level_command(interaction: discord.Interaction):
+    # Vérifier que la commande est utilisée sur un serveur, pas en DM
+    if not interaction.guild:
+        embed = discord.Embed(
+            title="❌ Erreur",
+            description="Cette commande fonctionne **uniquement sur un serveur**, pas en DM !",
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+    
     user_id = str(interaction.user.id)
     
     if user_id not in user_data:

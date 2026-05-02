@@ -149,6 +149,8 @@ async def level_command(interaction: discord.Interaction):
     embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)
     
     await interaction.response.send_message(embed=embed)
+    
+    await interaction.response.send_message(embed=embed)
 
 async def main():
     keep_alive()

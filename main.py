@@ -38,7 +38,8 @@ client = commands.Bot(command_prefix="!", intents=intents)
 ID_SALON_WELCOME = 1499019793318285343  
 ID_SALON_LEVELUP = 1499039238015160390  
 ID_SALON_RULES = 1499012460772851793
-ID_SERVEUR = 1499002734748111039  
+ID_SERVEUR = 1499002734748111039
+ID_SALON_SUPPORT = 1499810804889944104  
 
 # LISTE EXACTE DES RÔLES
 LEVEL_ROLES = {
@@ -189,6 +190,20 @@ async def on_message(message):
     if message.author.bot or not message.guild:
         return
 
+    # --- GESTION DU SALON SUPPORT ---
+    if message.channel.id == ID_SALON_SUPPORT:
+        support_message = """🍒 ✧･ﾟ: ✧･ﾟ 𝓼𝓾𝓹𝓹𝓸𝓻𝓽 𝓶𝓮 ♡ :･ﾟ✧:･ﾟ✧ 🍒
+₊˚⊹♡ 𝓽𝓾 𝓹𝓮𝓾𝔁 𝓶𝓮 𝓯𝓸𝓵𝓵𝓸𝔀 & 𝓶𝓮 𝓼𝓸𝓾𝓽𝓮𝓷𝓲𝓻 ♡⊹˚₊
+🌷 instagram • ko-fi • vgen ✨
+🎨 commissions dispo là-bas aussi 💌💖
+₊˚⊹♡ 𝓶𝓮𝓻𝓬𝓲 𝓹𝓸𝓾𝓻 𝓵𝓮 𝓼𝓸𝓾𝓽𝓲𝓮𝓷 ♡⊹˚₊
+🔗 https://ko-fi.com/cherrychester53235
+🔗 https://www.instagram.com/chxrrychester/
+🔗 https://vgen.co/CherryChester
+(≧◡≦) ♡ ✨"""
+        await message.channel.send(support_message)
+        return
+
     user_id = str(message.author.id)
     
     # Initialisation
@@ -288,40 +303,3 @@ if __name__ == "__main__":
         print("\n⏹️ Bot arrêté par l'utilisateur", flush=True)
     except Exception as e:
         print(f"❌ Erreur fatale: {e}", flush=True)
-
-        import discord
-from discord.ext import commands
-import os
-
-# --- CONFIGURATION ---
-intents = discord.Intents.all()
-client = commands.Bot(command_prefix="!", intents=intents)
-
-ID_SALON_SUPPORT = 1499810804889944104
-
-MESSAGE_SUPPORT = """🍒 ✧･ﾟ: ✧･ﾟ 𝓼𝓾𝓹𝓹𝓸𝓻𝓽 𝓶𝓮 ♡ :･ﾟ✧:･ﾟ✧ 🍒
-₊˚⊹♡ 𝓽𝓾 𝓹𝓮𝓾𝔁 𝓶𝓮 𝓯𝓸𝓵𝓵𝓸𝔀 & 𝓶𝓮 𝓼𝓸𝓾𝓽𝓮𝓷𝓲𝓻 ♡⊹˚₊
-🌷 instagram • ko-fi • vgen ✨
-🎨 commissions dispo là-bas aussi 💌💖
-₊˚⊹♡ 𝓶𝓮𝓻𝓬𝓲 𝓹𝓸𝓾𝓻 𝓵𝓮 𝓼𝓸𝓾𝓽𝓲𝓮𝓷 ♡⊹˚₊
-🔗 https://ko-fi.com/cherrychester53235
-🔗 https://www.instagram.com/chxrrychester/
-🔗 https://vgen.co/CherryChester
-(≧◡≦) ♡ ✨"""
-
-@client.event
-async def on_ready():
-    print(f"✅ Bot {client.user.name} en ligne et prêt à répondre dans le salon support.")
-
-@client.event
-async def on_message(message):
-    # Ignore les messages du bot lui-même pour éviter les boucles infinies
-    if message.author.bot:
-        return
-
-    # Vérifie si le message est posté dans le salon cible
-    if message.channel.id == ID_SALON_SUPPORT:
-        await message.channel.send(MESSAGE_SUPPORT)
-
-# Lancement du bot
-client.run(os.getenv('TOKEN'))

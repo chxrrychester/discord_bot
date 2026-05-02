@@ -2,6 +2,7 @@ import discord
 import asyncio
 import os
 import random
+import sys
 from discord.ext import commands
 from discord import app_commands
 from flask import Flask
@@ -19,7 +20,8 @@ def run():
 def keep_alive():
     t = Thread(target=run, daemon=True)
     t.start()
-    print("Keep-alive Flask server started on port 8080")
+    print("✅ Keep-alive Flask server started on port 8080", flush=True)
+    sys.stdout.flush()
 
 # --- CONFIGURATION DU BOT ---
 intents = discord.Intents.all()
@@ -80,10 +82,18 @@ def create_xp_bar(current_xp, xp_needed, length=20):
 @client.event
 async def on_ready():
     try:
+        print(f"📡 Connexion établie avec {client.user.name}#{client.user.discriminator}", flush=True)
+        print(f"🔄 Synchronisation des commandes slash...", flush=True)
+        sys.stdout.flush()
+        
         await client.tree.sync()
-        print(f"✅ L'ange {client.user.name} est prêt ! Rôles configurés.")
+        print(f"✅ L'ange {client.user.name} est prêt ! Rôles configurés.", flush=True)
+        sys.stdout.flush()
     except Exception as e:
-        print(f"⚠️ Erreur lors de la synchronisation des commandes: {e}")
+        print(f"⚠️ Erreur lors de la synchronisation des commandes: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        sys.stdout.flush()
 
 @client.event
 async def on_member_join(member):
@@ -177,26 +187,48 @@ async def level_command(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 async def main():
+    print("🤖 Initialisation du bot Discord...", flush=True)
+    sys.stdout.flush()
+    
     keep_alive()
+    
     async with client:
         token = os.getenv('TOKEN')
-        if not token or token == "TON_TOKEN_ICI":
-            print("❌ ERREUR: Variable d'environnement 'TOKEN' manquante ou invalide!")
-            print("Ajoute TON TOKEN DISCORD dans les variables d'environnement Render")
+        
+        print(f"🔍 Vérification du TOKEN...", flush=True)
+        sys.stdout.flush()
+        
+        if not token:
+            print("❌ ERREUR: Variable d'environnement 'TOKEN' manquante!", flush=True)
+            print("➡️  Ajoute ton TOKEN DISCORD dans les variables d'environnement Render", flush=True)
+            sys.stdout.flush()
             return
+        
+        print("✅ TOKEN trouvé, démarrage du bot...", flush=True)
+        sys.stdout.flush()
         
         try:
             await client.start(token)
         except Exception as e:
-            print(f"❌ Erreur au démarrage du bot: {e}")
+            print(f"❌ Erreur au démarrage du bot: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+            sys.stdout.flush()
             raise
 
 if __name__ == "__main__":
     try:
+        print("=" * 50, flush=True)
+        print("🚀 Démarrage du bot Angel", flush=True)
+        print("=" * 50, flush=True)
+        sys.stdout.flush()
+        
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("Bot arrêté")
+        print("\n⏹️  Bot arrêté par l'utilisateur", flush=True)
+        sys.stdout.flush()
     except Exception as e:
-        print(f"❌ Erreur fatale: {e}")
+        print(f"❌ Erreur fatale: {e}", flush=True)
         import traceback
         traceback.print_exc()
+        sys.stdout.flush()

@@ -3,6 +3,7 @@ import asyncio
 import os
 import random
 import sys
+import json
 from discord.ext import commands
 from discord import app_commands
 from flask import Flask
@@ -40,7 +41,6 @@ ID_SALON_RULES = 1499012460772851793
 ID_SERVEUR = 1499002734748111039  # ID du serveur Discord d'Angel    
 
 # LISTE EXACTE DES RÔLES (Basée sur ton image 675855.png)
-# Attention : Les rôles 41-50 et 51-60 n'ont pas "lvl" au début sur ton screen !
 LEVEL_ROLES = {
     "91": "lvl 91-100 ~ Legendary Art Deity 👑🌟",
     "81": "lvl 81-90 ~ Galaxy Master Illustrator 🔮✨",
@@ -56,7 +56,28 @@ LEVEL_ROLES = {
     "0":  "lvl 1-5 ~ Tiny Doodle Bean 🌼🖍️"
 }
 
-user_data = {} 
+# --- GESTION DE LA SAUVEGARDE DES DONNÉES ---
+DATA_FILE = "users_data.json"
+
+def load_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"⚠️ Erreur de lecture du fichier JSON: {e}")
+            return {}
+    return {}
+
+def save_data():
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(user_data, f, indent=4)
+    except Exception as e:
+        print(f"⚠️ Erreur de sauvegarde JSON: {e}")
+
+# On charge les données sauvegardées au lieu de démarrer à vide
+user_data = load_data()
 
 def get_rank_name(level):
     # On cherche le palier le plus haut atteint
@@ -67,20 +88,16 @@ def get_rank_name(level):
 
 def create_xp_bar(current_xp, xp_needed, length=20):
     """Crée une jauge d'XP avec dégradé jaune vers rose"""
-    # Emojis dégradé jaune -> orange -> rouge -> rose
     colors = ['🟨', '🟨', '🟧', '🟧', '🟥', '🟥', '🟪', '🟪', '🟪']
     empty = '⬜'
     
     filled = int((current_xp / xp_needed) * length)
     
-    # Crée la barre avec dégradé
     bar = ''
     for i in range(filled):
-        # Sélectionne la couleur selon la progression
         color_index = min(int((i / length) * len(colors)), len(colors) - 1)
         bar += colors[color_index]
     
-    # Complète avec des carrés vides
     bar += empty * (length - filled)
     
     return f"{bar} {current_xp}/{xp_needed} XP"
@@ -107,32 +124,27 @@ def create_xp_progress_image(current_xp, xp_needed, username):
     # Calculer la progression
     progress = max(0, min(1, current_xp / xp_needed))
     bar_width = width - (2 * bar_padding) - 4
-    filled_width = max(1, int(bar_width * progress))  # Au moins 1 pixel pour voir la barre
+    filled_width = max(1, int(bar_width * progress))  
     
     print(f"DEBUG XP Bar: current_xp={current_xp}, xp_needed={xp_needed}, progress={progress}, filled_width={filled_width}", flush=True)
     
     if filled_width > 0:
-        # Créer le gradient rose dégradé (jaune → rose → violet)
         for x in range(filled_width):
             ratio = x / max(filled_width, 1)
             
-            # Dégradé: Jaune (255,255,0) -> Orange (255,165,0) -> Rose (255,105,180) -> Violet (200,100,180)
             if ratio < 0.5:
-                # Jaune -> Rose
                 t = ratio * 2
                 r = int(255)
-                g = int(255 - (t * 150))  # 255 -> 105
-                b = int(t * 180)  # 0 -> 180
+                g = int(255 - (t * 150))
+                b = int(t * 180)
             else:
-                # Rose -> Violet
                 t = (ratio - 0.5) * 2
-                r = int(255 - (t * 55))  # 255 -> 200
-                g = int(105 - (t * 5))  # 105 -> 100
-                b = int(180 + (t * 0))  # 180
+                r = int(255 - (t * 55))
+                g = int(105 - (t * 5))
+                b = int(180 + (t * 0))
             
-            # Tracer une ligne verticale de cette couleur
             draw.line([(bar_padding + 2 + x, bar_y + 2), (bar_padding + 2 + x, bar_y + bar_height - 2)], 
-                     fill=(r, g, b), width=1)
+                      fill=(r, g, b), width=1)
     
     # Sauvegarder en bytes
     img_bytes = io.BytesIO()
@@ -148,11 +160,9 @@ async def on_ready():
         print(f"🔄 Synchronisation des commandes slash...", flush=True)
         sys.stdout.flush()
         
-        # Synchroniser les commandes GLOBALEMENT
         await client.tree.sync()
         print(f"✅ Synchronisation globale complétée", flush=True)
         
-        # Synchroniser aussi pour le serveur spécifique
         try:
             guild = discord.Object(id=ID_SERVEUR)
             synced = await client.tree.sync(guild=guild)
@@ -190,7 +200,6 @@ async def on_message(message):
 
     user_id = str(message.author.id)
     if user_id not in user_data:
-        # On initialise au niveau 0
         user_data[user_id] = {"xp": 0, "level": 0}
 
     # Gain d'XP
@@ -202,16 +211,13 @@ async def on_message(message):
     rank_name = get_rank_name(new_lvl)
     
     # --- LOGIQUE DE GRADE ---
-    # On vérifie si l'utilisateur a déjà le rôle correspondant à son rang actuel
     role = discord.utils.get(message.guild.roles, name=rank_name)
     if role and role not in message.author.roles:
         try:
-            # On retire les anciens rôles de la liste LEVEL_ROLES
             to_remove = [r for r in message.author.roles if r.name in LEVEL_ROLES.values()]
             if to_remove:
                 await message.author.remove_roles(*to_remove)
             
-            # On ajoute le nouveau rôle (même au niveau 0/1)
             await message.author.add_roles(role)
             print(f"Rôle {rank_name} attribué à {message.author.name}")
         except discord.Forbidden:
@@ -229,6 +235,9 @@ async def on_message(message):
                     await channel.send(content=lvl_msg, file=discord.File(f))
             except:
                 await channel.send(lvl_msg)
+                
+    # SAUVEGARDE DE L'XP À CHAQUE MESSAGE
+    save_data()
 
     await client.process_commands(message)
 
@@ -243,6 +252,7 @@ async def level_prefix_command(ctx):
         
         if user_id not in user_data:
             user_data[user_id] = {"xp": 0, "level": 0}
+            save_data()
         
         current_level = user_data[user_id]["level"]
         current_xp = user_data[user_id]["xp"]
@@ -253,7 +263,6 @@ async def level_prefix_command(ctx):
         
         rank_name = get_rank_name(current_level)
         
-        # Récupérer les rôles de l'utilisateur
         roles = [role.name for role in ctx.author.roles if role.name != "@everyone"]
         roles_str = ", ".join(roles) if roles else "Aucun rôle"
         
@@ -298,6 +307,7 @@ async def level_command(interaction: discord.Interaction):
         
         if user_id not in user_data:
             user_data[user_id] = {"xp": 0, "level": 0}
+            save_data()
         
         current_level = user_data[user_id]["level"]
         current_xp = user_data[user_id]["xp"]
@@ -308,12 +318,10 @@ async def level_command(interaction: discord.Interaction):
         
         rank_name = get_rank_name(current_level)
         
-        # Récupérer le vrai rôle de l'utilisateur sur le serveur
         member = interaction.user
         roles = [role.name for role in member.roles if role.name != "@everyone"]
         roles_str = ", ".join(roles) if roles else "Aucun rôle"
         
-        # Créer l'image de la jauge
         xp_bar_file = create_xp_progress_image(xp_in_level, xp_needed, interaction.user.name)
         
         embed = discord.Embed(

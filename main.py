@@ -194,8 +194,6 @@ async def on_message(message):
     if message.channel.id == ID_SALON_SUPPORT:
         support_message = """🍒 ✧･ﾟ: ✧･ﾟ 𝓼𝓾𝓹𝓹𝓸𝓻𝓽 𝓶𝓮 ♡ :･ﾟ✧:･ﾟ✧ 🍒
 
-₊˚⊹♡ 𝓯𝓸𝓵𝓵𝓸𝔀 𝓶𝓮 & 𝓼𝓾𝓹𝓹𝓸𝓻𝓽 𝓶𝓪𝓷 𝓹𝓻𝓪𝓷𝔁 ♡⊹˚₊
-
 🌷 instagram • ko-fi • vgen ✨
 🎨 commissions available there too 💌💖
 

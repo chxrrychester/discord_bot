@@ -59,6 +59,19 @@ LEVEL_ROLES = {
 # --- GESTION DE LA SAUVEGARDE DES DONNÉES ---
 DATA_FILE = "users_data.json"
 
+def reset_all_data():
+    """Remet à zéro l'XP et les niveaux de TOUT LE MONDE."""
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump({}, f, indent=4)
+        print("🧹 Données réinitialisées avec succès ! Tout le monde est à 0 XP.", flush=True)
+    except Exception as e:
+        print(f"⚠️ Erreur de réinitialisation: {e}", flush=True)
+
+# --- APPEL DE LA RÉINITIALISATION ---
+# Supprime cette ligne après le premier démarrage si tu ne veux pas tout effacer à chaque fois !
+reset_all_data()
+
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -76,7 +89,7 @@ def save_data():
     except Exception as e:
         print(f"⚠️ Erreur de sauvegarde JSON: {e}", flush=True)
 
-# On charge les données au démarrage
+# On charge les données vides (car on vient de reset)
 user_data = load_data()
 
 # --- FONCTIONS UTILITAIRES ---

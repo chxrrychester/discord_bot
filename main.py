@@ -83,53 +83,37 @@ def create_xp_bar(current_xp, xp_needed, length=20):
 
 def create_xp_progress_image(current_xp, xp_needed, username):
     """Crée une image de jauge d'XP avec dégradé jaune vers rose"""
-    # Dimensions
-    width, height = 450, 60
+    width, height = 400, 50
     
-    # Créer l'image
-    img = Image.new('RGB', (width, height), color=(30, 30, 30))
+    img = Image.new('RGB', (width, height), color=(40, 40, 40))
     draw = ImageDraw.Draw(img)
     
-    # Bordure et fond de la barre
     bar_padding = 10
     bar_height = 30
     bar_y = (height - bar_height) // 2
     
-    # Dessiner la barre de fond (gris foncé)
+    # Barre de fond
     draw.rectangle(
         [(bar_padding, bar_y), (width - bar_padding, bar_y + bar_height)],
-        fill=(50, 50, 50),
+        fill=(60, 60, 60),
         outline=(100, 100, 100),
         width=2
     )
     
     # Calculer la progression
-    progress = current_xp / xp_needed
+    progress = max(0, min(1, current_xp / xp_needed))
     bar_width = width - (2 * bar_padding) - 4
     filled_width = int(bar_width * progress)
     
-    # Créer le dégradé jaune -> rose
-    gradient_img = Image.new('RGB', (filled_width, bar_height))
-    gradient_pixels = gradient_img.load()
-    
-    for x in range(filled_width):
-        # Progression du dégradé
-        ratio = x / max(filled_width, 1)
-        
-        # Interpolation: Jaune (255,255,0) -> Rose (255,192,203)
-        r = int(255)
-        g = int(255 - (ratio * 63))  # 255 -> 192
-        b = int(0 + (ratio * 203))    # 0 -> 203
-        
-        for y in range(bar_height):
-            gradient_pixels[x, y] = (r, g, b)
-    
-    # Coller le gradient sur l'image principale
-    img.paste(gradient_img, (bar_padding + 2, bar_y + 2))
-    
-    # Ajouter le texte de progression
-    text = f"{current_xp}/{xp_needed} XP"
-    # On va créer une version simple sans texte en superposition
+    if filled_width > 0:
+        # Créer le gradient pixel par pixel
+        for x in range(filled_width):
+            ratio = x / max(filled_width, 1)
+            r = 255
+            g = int(255 - (ratio * 63))
+            b = int(ratio * 203)
+            
+            draw.line([(bar_padding + 2 + x, bar_y + 2), (bar_padding + 2 + x, bar_y + bar_height - 2)], fill=(r, g, b), width=1)
     
     # Sauvegarder en bytes
     img_bytes = io.BytesIO()
@@ -218,30 +202,33 @@ async def on_message(message):
 
 @client.tree.command(name="level", description="Affiche votre niveau et votre rang")
 async def level_command(interaction: discord.Interaction):
-    # Vérifier que la commande est utilisée sur un serveur, pas en DM
-    if not interaction.guild:
-        embed = discord.Embed(
-            title="❌ Erreur",
-            description="Cette commande fonctionne **uniquement sur un serveur**, pas en DM !",
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-        return
-    
-    user_id = str(interaction.user.id)
-    
-    if user_id not in user_data:
-        user_data[user_id] = {"xp": 0, "level": 0}
-    
-    current_level = user_data[user_id]["level"]
-    current_xp = user_data[user_id]["xp"]
-    xp_needed = 100
-    xp_in_level = current_xp % xp_needed
-    
-    rank_name = get_rank_name(current_level)
-    
-    # Créer l'image de la jauge
     try:
+        # Vérifier que la commande est utilisée sur un serveur
+        if not interaction.guild:
+            embed = discord.Embed(
+                title="❌ Erreur",
+                description="Cette commande fonctionne **uniquement sur un serveur** !",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        
+        print(f"📊 Commande /level utilisée par {interaction.user.name}", flush=True)
+        sys.stdout.flush()
+        
+        user_id = str(interaction.user.id)
+        
+        if user_id not in user_data:
+            user_data[user_id] = {"xp": 0, "level": 0}
+        
+        current_level = user_data[user_id]["level"]
+        current_xp = user_data[user_id]["xp"]
+        xp_needed = 100
+        xp_in_level = current_xp % xp_needed
+        
+        rank_name = get_rank_name(current_level)
+        
+        # Créer l'image de la jauge
         xp_bar_file = create_xp_progress_image(xp_in_level, xp_needed, interaction.user.name)
         
         embed = discord.Embed(
@@ -258,24 +245,25 @@ async def level_command(interaction: discord.Interaction):
         embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)
         
         await interaction.response.send_message(embed=embed, file=xp_bar_file)
-    except Exception as e:
-        print(f"❌ Erreur lors de la création de la jauge: {e}", flush=True)
+        print(f"✅ /level envoyé avec succès", flush=True)
         sys.stdout.flush()
         
-        # Fallback avec du texte simple
-        embed = discord.Embed(
-            title=f"Niveau de {interaction.user.name}",
-            description=f"**Niveau :** {current_level}\n**Rang :** {rank_name}",
-            color=discord.Color.gold()
-        )
-        embed.add_field(
-            name="Progression XP",
-            value=f"{xp_in_level}/{xp_needed} XP",
-            inline=False
-        )
-        embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)
+    except Exception as e:
+        print(f"❌ Erreur dans /level: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        sys.stdout.flush()
         
-        await interaction.response.send_message(embed=embed)
+        try:
+            # Fallback - envoyer un message d'erreur
+            embed = discord.Embed(
+                title="❌ Erreur",
+                description=f"Une erreur s'est produite : {str(e)[:100]}",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        except:
+            pass
 
 async def main():
     print("🤖 Initialisation du bot Discord...", flush=True)

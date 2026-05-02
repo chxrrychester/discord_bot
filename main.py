@@ -3,6 +3,7 @@ import asyncio
 import os
 import random
 from discord.ext import commands
+from discord import app_commands
 from flask import Flask
 from threading import Thread
 
@@ -57,6 +58,7 @@ def get_rank_name(level):
 
 @client.event
 async def on_ready():
+    await client.tree.sync()
     print(f"L'ange {client.user.name} est prêt ! Rôles configurés.")
 
 @client.event
@@ -120,6 +122,33 @@ async def on_message(message):
                 await channel.send(lvl_msg)
 
     await client.process_commands(message)
+
+@client.tree.command(name="level", description="Affiche votre niveau et votre rang")
+async def level_command(interaction: discord.Interaction):
+    user_id = str(interaction.user.id)
+    
+    if user_id not in user_data:
+        user_data[user_id] = {"xp": 0, "level": 0}
+    
+    current_level = user_data[user_id]["level"]
+    current_xp = user_data[user_id]["xp"]
+    xp_for_next_level = (current_level + 1) * 100
+    
+    rank_name = get_rank_name(current_level)
+    
+    embed = discord.Embed(
+        title=f"Niveau de {interaction.user.name}",
+        description=f"**Niveau :** {current_level}\n**Rang :** {rank_name}",
+        color=discord.Color.gold()
+    )
+    embed.add_field(
+        name="XP",
+        value=f"{current_xp}/{xp_for_next_level} XP",
+        inline=True
+    )
+    embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)
+    
+    await interaction.response.send_message(embed=embed)
 
 async def main():
     keep_alive()
